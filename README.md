@@ -20,6 +20,23 @@ First run does three slow things (automatic, one-time):
 
 Subsequent starts load from cache in ~20–60 s.
 
+## Linux / Codespaces quick start
+
+Codespace images default to a newer Python whose wheels don't exist for the
+pinned torch — build the venv with **Python 3.11–3.12**, then use the CPU torch
+index (no NVIDIA GPU in the cloud):
+
+```bash
+python3.12 -m venv .venv && source .venv/bin/activate
+python -m pip install torch==2.6.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cpu
+python -m pip install -r requirements.txt
+python server.py
+```
+
+If `pkuseg` fails to build during step 3, use the two-step install documented
+in `requirements.txt`. The app runs on CPU (status pill: `ready · CPU`), roughly
+3–4× slower per sentence than the GPU path.
+
 ## Manual setup (if `.venv` doesn't exist)
 
 ```bat
