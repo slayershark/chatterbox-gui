@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chatterbox TTS Studio</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0d1017;
+    --panel: #151a24;
+    --panel-2: #1b2230;
+    --border: #26304200;
+    --stroke: #33405a;
+    --text: #eef1f8;
+    --muted: #a5b0c5;
+    --accent: #7c5cff;
+    --accent-2: #b04dff;
+    --ok: #2dd4a7;
+    --warn: #f4b95f;
+    --err: #ff6b7a;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: radial-gradient(1200px 600px at 80% -10%, #1b1440 0%, var(--bg) 55%) fixed;
+    color: var(--text);
+    font: 15px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .wrap { max-width: 1120px; margin: 0 auto; padding: 28px 20px 60px; }
+  header { display: flex; align-items: center; gap: 14px; margin-bottom: 22px; }
+  .logo {
+    width: 42px; height: 42px; border-radius: 12px; flex: none;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    display: grid; place-items: center; font-size: 21px;
+    box-shadow: 0 4px 24px #7c5cff55;
+  }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .2px; }
+  .sub { color: var(--muted); font-size: 13px; }
+  .pill {
+    margin-left: auto; font-size: 12px; padding: 5px 12px; border-radius: 999px;
+    border: 1px solid var(--stroke); background: var(--panel); color: var(--muted);
+    display: flex; align-items: center; gap: 7px; white-space: nowrap;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--warn); animation: pulse 1.2s infinite; }
+  .dot.ready { background: var(--ok); animation: none; }
+  .dot.error { background: var(--err); animation: none; }
+  .gpu-stat { color: #c6cede; }
+  .gpu-stat b { color: var(--ok); font-variant-numeric: tabular-nums; }
+  .gpu-stat b.busy { color: var(--warn); }
+  @keyframes pulse { 50% { opacity: .35; } }
+
+  .grid { display: grid; grid-template-columns: 1fr 380px; gap: 18px; align-items: start; }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--panel); border: 1px solid var(--stroke);
+    border-radius: var(--radius); padding: 18px; margin-bottom: 18px;
+  }
+  .card h2 { margin: 0 0 4px; font-size: 15px; }
+  .hint { color: var(--muted); font-size: 12.5px; margin: 0 0 12px; }
+
+  textarea {
+    width: 100%; min-height: 170px; resize: vertical;
+    background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--stroke); border-radius: 10px;
+    padding: 13px 14px; font: 15px/1.55 inherit; outline: none;
+  }
+  textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #7c5cff22; }
+  .row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+  .counter { color: var(--muted); font-size: 12px; }
+
+  .lang-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .lang-label { font-size: 12.5px; color: var(--muted); }
+  .seg { display: inline-flex; border: 1px solid var(--stroke); border-radius: 9px; overflow: hidden; }
+  .seg-btn {
+    background: transparent; color: var(--muted); font-size: 13px;
+    padding: 6px 16px; border-radius: 0;
+  }
+  .seg-btn + .seg-btn { border-left: 1px solid var(--stroke); }
+  .seg-btn.active { background: linear-gradient(135deg, var(--accent), var(--accent-2)); color: #fff; font-weight: 600; }
+
+  button { font: inherit; cursor: pointer; border: none; border-radius: 10px; }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    color: #fff; font-weight: 600; padding: 11px 26px; font-size: 15px;
+    box-shadow: 0 4px 18px #7c5cff44; transition: transform .05s, opacity .2s;
+  }
+  .btn-primary:hover:not(:disabled) { transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+  .btn-ghost {
+    background: transparent; color: var(--muted); border: 1px solid var(--stroke);
+    padding: 7px 14px; font-size: 13px;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: #4a5a7a; }
+
+  .voices { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .voice {
+    position: relative; border: 1.5px solid var(--stroke); background: var(--panel-2);
+    border-radius: 12px; padding: 12px 12px 10px; cursor: pointer; transition: border-color .15s;
+  }
+  .voice:hover { border-color: #4a5a7a; }
+  .voice.selected { border-color: var(--accent); background: #7c5cff14; }
+  .voice .vname { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 7px; }
+  .voice .vdesc { color: var(--muted); font-size: 11.5px; margin-top: 3px; min-height: 30px; }
+  .vbadge {
+    font-size: 10px; padding: 1.5px 7px; border-radius: 999px; font-weight: 600;
+    background: #2dd4a722; color: var(--ok);
+  }
+  .vbadge.preset { background: #7c5cff22; color: #b3a1ff; }
+  .vactions { display: flex; gap: 6px; margin-top: 8px; }
+  .mini {
+    flex: 1; background: #ffffff14; color: #c6cede; font-size: 11.5px; padding: 5px 0;
+    border-radius: 7px; border: 1px solid var(--stroke);
+  }
+  .mini:hover { color: var(--text); }
+  .mini.danger:hover { color: var(--err); border-color: var(--err); }
+  .vdel {
+    position: absolute; top: 7px; right: 7px; width: 20px; height: 20px; line-height: 1;
+    background: transparent; color: var(--muted); font-size: 13px; border-radius: 6px; display: none;
+  }
+  .voice:hover .vdel { display: block; }
+  .vdel:hover { color: var(--err); background: #ffffff10; }
+
+  .add-voice {
+    border: 1.5px dashed #4a5a7a; background: transparent; color: var(--muted);
+    display: grid; place-items: center; min-height: 96px; font-size: 13px; gap: 4px;
+  }
+  .add-voice:hover { border-color: var(--accent); color: var(--text); }
+  .add-voice b { font-size: 19px; color: var(--accent); }
+
+  .sliders { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 22px; margin-top: 4px; }
+  .sliders label { font-size: 12.5px; color: var(--muted); display: flex; justify-content: space-between; }
+  .sliders label b { color: var(--text); font-variant-numeric: tabular-nums; }
+  input[type=range] { width: 100%; accent-color: var(--accent); margin: 6px 0 0; }
+  details summary { cursor: pointer; color: var(--muted); font-size: 13px; user-select: none; }
+  details[open] summary { margin-bottom: 10px; }
+
+  #player { width: 100%; margin-top: 4px; }
+  .out-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+  .out-meta .muted { color: var(--muted); font-size: 12.5px; }
+
+  .hist-tools { display: flex; gap: 8px; margin-bottom: 10px; align-items: center; }
+  .session-label { color: var(--muted); font-size: 12px; margin-left: auto; }
+  .hist-session { margin-bottom: 14px; }
+  .hist-session h3 { margin: 0 0 6px; font-size: 13px; color: var(--text); }
+  .hist-clip { display: flex; align-items: center; gap: 10px; padding: 7px 10px;
+    background: var(--panel-2); border: 1px solid var(--stroke); border-radius: 9px; margin-bottom: 6px; }
+  .hist-clip audio { height: 32px; flex: 1; min-width: 120px; }
+  .hist-meta { font-size: 11.5px; color: var(--muted); width: 170px; flex: none; }
+  .hist-meta a { color: #c6cede; text-decoration: none; }
+  .hist-meta a:hover { color: var(--text); text-decoration: underline; }
+  .hist-empty { color: var(--muted); font-size: 13px; padding: 8px 0; }
+  audio::-webkit-media-controls-panel { background: var(--panel-2); }
+
+  .placeholder {
+    border: 1.5px dashed var(--stroke); border-radius: 12px; padding: 34px 10px;
+    text-align: center; color: var(--muted); font-size: 13.5px;
+  }
+  .spinner {
+    width: 15px; height: 15px; border: 2px solid #ffffff33; border-top-color: #fff;
+    border-radius: 50%; display: inline-block; vertical-align: -3px; margin-right: 8px;
+    animation: spin .8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .busy-note { background: #f4b95f14; border: 1px solid #f4b95f44; color: var(--warn);
+    border-radius: 10px; padding: 10px 14px; font-size: 13px; margin-bottom: 14px; }
+
+  dialog {
+    background: var(--panel); color: var(--text); border: 1px solid var(--stroke);
+    border-radius: var(--radius); padding: 22px; width: min(430px, 92vw);
+  }
+  dialog::backdrop { background: #000a; }
+  dialog h3 { margin: 0 0 4px; }
+  dialog .hint { margin-bottom: 14px; }
+  dialog input[type=text] {
+    width: 100%; background: var(--panel-2); color: var(--text);
+    border: 1px solid var(--stroke); border-radius: 9px; padding: 10px 12px; font: inherit; outline: none;
+  }
+  dialog input[type=text]:focus { border-color: var(--accent); }
+  .drop {
+    margin-top: 12px; border: 1.5px dashed #4a5a7a; border-radius: 10px;
+    padding: 22px 10px; text-align: center; color: var(--muted); font-size: 13px; cursor: pointer;
+  }
+  .drop.hover { border-color: var(--accent); color: var(--text); background: #7c5cff0d; }
+  .fname { color: var(--ok); font-size: 12.5px; margin-top: 8px; min-height: 16px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px; }
+
+  #toast {
+    position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(20px);
+    background: var(--err); color: #fff; padding: 11px 20px; border-radius: 10px;
+    font-size: 13.5px; opacity: 0; pointer-events: none; transition: all .25s; max-width: 80vw;
+  }
+  #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  #toast.ok { background: var(--ok); color: #06281f; }
+  footer { text-align: center; color: var(--muted); font-size: 12px; margin-top: 26px; }
+  footer a { color: var(--muted); }
+  footer .ver { color: #c6cede; font-weight: 600; }
+
+  /* Engine card GPU meter + aligned numerals */
+  .gpu-bar { height: 8px; border-radius: 5px; background: var(--panel-2); border: 1px solid var(--stroke); overflow: hidden; }
+  .gpu-bar > i { display: block; height: 100%; width: 0; border-radius: 5px;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2)); transition: width .6s ease; }
+  .gpu-bar > i.busy { background: linear-gradient(90deg, var(--warn), var(--err)); }
+  .gpu-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; }
+  .gpu-meta b { color: var(--text); font-variant-numeric: tabular-nums; font-weight: 600; }
+  .gpu-meta b.busy { color: var(--warn); }
+  #gpu-box { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">🗣️</div>
+    <div>
+      <h1>Chatterbox TTS Studio</h1>
+      <div class="sub">Text in → voice → speech out. Powered by Resemble AI's open-source Chatterbox.</div>
+    </div>
+    <div class="pill"><span id="status-dot" class="dot"></span><span id="status-text">Connecting…</span><span class="gpu-stat" id="gpu-stat"></span></div>
+  </header>
+
+  <div id="busy-banner" class="busy-note" style="display:none">
+    <span class="spinner"></span>Loading the Chatterbox model… the first run downloads ~1–2&nbsp;GB, this can take several minutes. The page will enable itself when ready.
+  </div>
+
+  <div class="grid">
+    <main>
+      <section class="card">
+        <h2>1 · Text</h2>
+        <p class="hint">English &amp; हिन्दी, up to 5,000 characters. Long text is split into sentence chunks automatically.</p>
+        <div class="lang-row">
+          <span class="lang-label">Language</span>
+          <div class="seg" id="lang-seg">
+            <button class="seg-btn active" data-lang="auto">Auto</button>
+            <button class="seg-btn" data-lang="en">English</button>
+            <button class="seg-btn" data-lang="hi">हिन्दी</button>
+          </div>
+        </div>
+        <textarea id="text" maxlength="5000" placeholder="Type or paste the text you want spoken… (हिंदी में भी लिख सकते हैं)">Now let's make my mum's favourite. So three mars bars into the pan, then we add the tuna and just stir for a bit, just let the chocolate and fish infuse. A sprinkle of olive oil and some tomato ketchup. Now smell that. Oh boy, this is going to be incredible.</textarea>
+        <div class="row">
+          <button id="generate" class="btn-primary" disabled>Generate speech</button>
+          <span id="gen-time" class="counter"></span>
+          <span id="char-counter" class="counter" style="margin-left:auto">0 / 5000</span>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>3 · Output</h2>
+        <div id="out-placeholder" class="placeholder">🔇 Nothing generated yet — pick a voice and hit <b>Generate speech</b>.</div>
+        <div id="out" style="display:none">
+          <audio id="player" controls></audio>
+          <div class="out-meta">
+            <span class="muted" id="out-info"></span>
+            <button class="btn-ghost" id="download">⬇ Download .wav</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>4 · History</h2>
+        <p class="hint">Every clip is saved under <b>data/audio/sessions/&lt;session&gt;</b> — one folder per session, browsable in Explorer.</p>
+        <div class="hist-tools">
+          <button class="btn-ghost" id="hist-refresh">⟳ Refresh</button>
+          <button class="btn-ghost" id="new-session">＋ New session</button>
+          <span class="session-label" id="session-label"></span>
+        </div>
+        <div id="history-list"><div class="hist-empty">No sessions yet.</div></div>
+      </section>
+    </main>
+
+    <aside>
+      <section class="card">
+        <h2>2 · Voice</h2>
+        <p class="hint">Click a card to select it. ▶ previews the reference clip.</p>
+        <div id="voices" class="voices"></div>
+      </section>
+
+      <section class="card">
+        <h2>Engine</h2>
+        <p class="hint">Live GPU load of this machine's CUDA device. Busy periods = a generation is running.</p>
+        <div id="gpu-box" class="placeholder">GPU info unavailable.</div>
+      </section>
+
+      <section class="card">
+        <h2>Fine-tuning</h2>
+        <details open>
+          <summary>Voice controls</summary>
+          <div class="sliders">
+            <div>
+              <label>Exaggeration <b id="val-exag">0.50</b></label>
+              <input type="range" id="exag" min="0.25" max="2" step="0.05" value="0.5">
+            </div>
+            <div>
+              <label>CFG / pace <b id="val-cfg">0.50</b></label>
+              <input type="range" id="cfg" min="0" max="1" step="0.05" value="0.5">
+            </div>
+            <div>
+              <label>Temperature <b id="val-temp">0.80</b></label>
+              <input type="range" id="temp" min="0.05" max="2" step="0.05" value="0.8">
+            </div>
+          </div>
+          <p class="hint" style="margin-top:12px">Expressive speech → raise exaggeration (~0.7+) and lower CFG (~0.3). Neutral narration → keep both at 0.5.</p>
+        </details>
+      </section>
+    </aside>
+  </div>
+
+  <footer>
+    <div>Runs 100% locally · outputs are PerTh-watermarked · model by <a href="https://github.com/resemble-ai/chatterbox" target="_blank">Resemble AI</a></div>
+    <div style="margin-top:6px"><span class="ver">v1.3.0</span> · GUI developed by <b>slayershark</b></div>
+  </footer>
+</div>
+
+<dialog id="add-dialog">
+  <h3>Add a voice</h3>
+  <p class="hint">Upload 5–15 seconds of <b>clean, single-speaker</b> speech (wav / mp3 / m4a / flac / ogg). The model clones the timbre from this reference clip.</p>
+  <input type="text" id="new-name" placeholder="Voice name (e.g. Maya)" maxlength="40">
+  <div class="drop" id="drop">📄 Drop an audio file here, or <u>click to browse</u></div>
+  <div class="fname" id="fname"></div>
+  <div class="modal-actions">
+    <button class="btn-ghost" id="cancel-add">Cancel</button>
+    <button class="btn-primary" id="confirm-add" disabled style="padding:9px 20px">Create voice</button>
+  </div>
+</dialog>
+
+<div id="toast"></div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+let selectedVoice = null;
+let voices = [];
+let lastBlobUrl = null;
+let language = 'auto';
+let previewAudio = null;
+let previewBtn = null;
+
+/* Only one voice preview may play at a time; clicking again stops it. */
+function stopPreview() {
+  if (previewAudio) previewAudio.pause();
+  if (previewBtn && previewBtn.isConnected) previewBtn.textContent = '▶ preview';
+  previewAudio = null;
+  previewBtn = null;
+}
+
+function playPreview(v, btn) {
+  if (previewAudio) {
+    const wasSame = previewAudio.src.endsWith(v.preview);
+    const oldBtn = previewBtn;
+    stopPreview();
+    if (wasSame) return;
+    void oldBtn;
+  }
+  const audio = new Audio(v.preview);
+  previewAudio = audio;
+  previewBtn = btn;
+  btn.textContent = '⏸ stop';
+  const reset = () => {
+    if (previewAudio === audio) { previewAudio = null; previewBtn = null; }
+    if (btn.isConnected) btn.textContent = '▶ preview';
+  };
+  audio.addEventListener('ended', reset);
+  audio.addEventListener('error', () => { reset(); toast('Preview failed to play.'); });
+  audio.play().catch(() => { reset(); toast('Preview failed to play.'); });
+}
+
+document.querySelectorAll('#lang-seg .seg-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    language = btn.dataset.lang;
+    document.querySelectorAll('#lang-seg .seg-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+function toast(msg, ok = false) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = 'show' + (ok ? ' ok' : '');
+  setTimeout(() => (t.className = ''), 4200);
+}
+
+/* ---------- status ---------- */
+async function pollStatus() {
+  try {
+    const r = await fetch('/api/status');
+    const s = await r.json();
+    const dot = $('status-dot'), txt = $('status-text');
+    if (s.ready) {
+      dot.className = 'dot ready';
+      txt.textContent = `Ready · ${s.device.toUpperCase()}${s.half ? ' fp16' : ''}`;
+      $('generate').disabled = false;
+      $('busy-banner').style.display = 'none';
+      return true;
+    }
+    if (s.error) {
+      dot.className = 'dot error';
+      txt.textContent = 'model error';
+      $('busy-banner').innerHTML = '⚠️ <b>Model failed to load:</b> ' + s.error;
+      $('busy-banner').style.display = 'block';
+      return true;
+    }
+    txt.textContent = 'Loading model…';
+    $('busy-banner').style.display = 'block';
+  } catch {
+    $('status-text').textContent = 'Server offline';
+  }
+  return false;
+}
+
+/* ---------- live GPU usage ---------- */
+async function pollGpu() {
+  try {
+    const g = await (await fetch('/api/gpu')).json();
+    const box = $('gpu-box');
+    if (!g.available) {
+      box.textContent = 'No CUDA device — running on CPU.';
+      $('gpu-stat').textContent = '';
+      return;
+    }
+    const util = g.util_percent ?? 0;
+    box.innerHTML = `<div class="gpu-bar"><i class="${util > 40 ? 'busy' : ''}" style="width:${Math.min(util, 100)}%"></i></div>\n`
+      + `<div class="gpu-meta"><span><b class="${util > 40 ? 'busy' : ''}">${util}%</b> core · <b>${g.mem_percent ?? 0}%</b> mem</span>`
+      + `<span>VRAM <b>${(+g.vram_used_gb).toFixed(1) || '?'} GB</b> · <b>${g.temp_c ?? '?'}°C</b></span></div>`;
+    $('gpu-stat').innerHTML = ` · GPU <b class="${util > 40 ? 'busy' : ''}">${util}%</b>`;
+  } catch {
+    /* server briefly busy; keep last value */
+  }
+}
+setInterval(pollGpu, 2000);
+pollGpu();
+(async function waitReady() {
+  if (!(await pollStatus())) setTimeout(waitReady, 2500);
+})();
+
+/* ---------- voices ---------- */
+function renderVoices() {
+  const el = $('voices');
+  el.innerHTML = '';
+  for (const v of voices) {
+    const card = document.createElement('div');
+    card.className = 'voice' + (selectedVoice === v.id ? ' selected' : '');
+    card.innerHTML = `
+      <button class="vdel" title="Delete voice">✕</button>
+      <div class="vname">${v.name} <span class="vbadge ${v.kind}">${v.kind}</span></div>
+      <div class="vdesc">${v.description || ''}</div>
+      <div class="vactions">
+        <button class="mini act-preview">▶ preview</button>
+        <button class="mini act-use">Use</button>
+      </div>`;
+    card.addEventListener('click', () => { selectedVoice = v.id; renderVoices(); });
+    card.querySelector('.act-preview').addEventListener('click', (e) => {
+      e.stopPropagation();
+      playPreview(v, e.currentTarget);
+    });
+    card.querySelector('.act-use').addEventListener('click', (e) => {
+      e.stopPropagation();
+      selectedVoice = v.id; renderVoices();
+      toast(`Voice set to ${v.name}`, true);
+    });
+    if (v.kind === 'custom') {
+      card.querySelector('.vdel').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Delete voice "${v.name}"?`)) return;
+        await fetch('/api/voices/' + v.id, { method: 'DELETE' });
+        if (selectedVoice === v.id) selectedVoice = null;
+        await loadVoices();
+      });
+    }
+    el.appendChild(card);
+  }
+  const add = document.createElement('button');
+  add.className = 'voice add-voice';
+  add.innerHTML = '<b>＋</b><span>Add a voice<br>(clone from clip)</span>';
+  add.addEventListener('click', () => $('add-dialog').showModal());
+  el.appendChild(add);
+  if (!selectedVoice && voices.length) selectedVoice = voices[0].id;
+}
+
+async function loadVoices() {
+  const r = await fetch('/api/voices');
+  voices = await r.json();
+  if (!voices.some(v => v.id === selectedVoice)) selectedVoice = voices[0]?.id ?? null;
+  renderVoices();
+}
+loadVoices();
+loadHistory();
+
+/* ---------- sliders ---------- */
+for (const [inp, out, fmt] of [['exag', 'val-exag', v => (+v).toFixed(2)],
+                              ['cfg', 'val-cfg', v => (+v).toFixed(2)],
+                              ['temp', 'val-temp', v => (+v).toFixed(2)]]) {
+  $(inp).addEventListener('input', () => $(out).textContent = fmt($(inp).value));
+}
+
+/* ---------- char counter ---------- */
+const ta = $('text');
+ta.addEventListener('input', () => $('char-counter').textContent = `${ta.value.length} / 5000`);
+$('char-counter').textContent = `${ta.value.length} / 5000`;
+
+/* ---------- history / sessions ---------- */
+let session = localStorage.getItem('tts_session') || '';
+
+function renderHistory(data) {
+  const el = $('history-list');
+  if (!data.length) {
+    el.innerHTML = '<div class="hist-empty">No sessions yet — generate something!</div>';
+    return;
+  }
+  el.innerHTML = '';
+  for (const s of data) {
+    const div = document.createElement('div');
+    div.className = 'hist-session';
+    const h = document.createElement('h3');
+    h.textContent = s.name.replaceAll('_', ' ') + ` · ${s.clips.length} clip${s.clips.length > 1 ? 's' : ''}`;
+    div.appendChild(h);
+    for (const c of s.clips) {
+      const row = document.createElement('div');
+      row.className = 'hist-clip';
+      const meta = document.createElement('div');
+      meta.className = 'hist-meta';
+      const when = new Date(c.created * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      meta.innerHTML = `<a href="${c.url}" download="${c.file}">${when} · ${c.voice}</a><br>${c.language.toUpperCase()} · ${c.duration}s · ${c.chars} chars`;
+      const player = document.createElement('audio');
+      player.controls = true;
+      player.preload = 'none';
+      player.src = c.url;
+      row.appendChild(meta);
+      row.appendChild(player);
+      div.appendChild(row);
+    }
+    el.appendChild(div);
+  }
+}
+
+async function loadHistory() {
+  try {
+    const r = await fetch('/api/history');
+    renderHistory(await r.json());
+  } catch {
+    $('history-list').innerHTML = '<div class="hist-empty">History unavailable.</div>';
+  }
+  $('session-label').textContent = session ? 'Session: ' + session.replaceAll('_', ' ') : 'Session: (new on next generate)';
+}
+
+$('new-session').addEventListener('click', () => {
+  session = '';
+  localStorage.removeItem('tts_session');
+  $('session-label').textContent = 'Session: (new on next generate)';
+  toast('Next generation starts a new session.', true);
+});
+$('hist-refresh').addEventListener('click', loadHistory);
+
+/* ---------- generate ---------- */
+$('generate').addEventListener('click', async () => {
+  const btn = $('generate');
+  const text = ta.value.trim();
+  if (!text) return toast('Type some text first.');
+  if (!selectedVoice) return toast('Select a voice first.');
+  stopPreview();
+  btn.disabled = true;
+  btn.textContent = 'Generating…';
+  $('gen-time').textContent = '';
+  const t0 = performance.now();
+  try {
+    const r = await fetch('/api/generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        voice: selectedVoice,
+        language,
+        exaggeration: +$('exag').value,
+        cfg_weight: +$('cfg').value,
+        temperature: +$('temp').value,
+      }),
+    });
+    if (!r.ok) {
+      let detail = r.statusText;
+      try { detail = (await r.json()).detail || detail; } catch {}
+      throw new Error(detail);
+    }
+    const sess = r.headers.get('X-Session');
+    if (sess) {
+      session = sess;
+      localStorage.setItem('tts_session', sess);
+      $('session-label').textContent = 'Session: ' + sess.replaceAll('_', ' ');}
+    const blob = await r.blob();
+    if (lastBlobUrl) URL.revokeObjectURL(lastBlobUrl);
+    lastBlobUrl = URL.createObjectURL(blob);
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    $('player').src = lastBlobUrl;
+    $('out-placeholder').style.display = 'none';
+    $('out').style.display = 'block';
+    $('out-info').textContent = `${selectedVoice} · ${(blob.size / 1e6).toFixed(2)} MB · ${secs}s`;
+    $('download').onclick = () => {
+      const a = document.createElement('a');
+      a.href = lastBlobUrl;
+      a.download = `tts_${selectedVoice}_${Date.now()}.wav`;
+      a.click();
+    };
+    $('player').play().catch(() => {});
+    loadHistory();
+  } catch (err) {
+    toast('Generation failed: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Generate speech';
+  }
+});
+
+/* ---------- add-voice dialog ---------- */
+let pendingFile = null;
+const drop = $('drop');
+drop.addEventListener('click', () => {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'audio/*,.wav,.mp3,.m4a,.flac,.ogg,.opus';
+  inp.onchange = () => setFile(inp.files[0]);
+  inp.click();
+});
+drop.addEventListener('dragover', (e) => { e.preventDefault(); drop.classList.add('hover'); });
+drop.addEventListener('dragleave', () => drop.classList.remove('hover'));
+drop.addEventListener('drop', (e) => {
+  e.preventDefault(); drop.classList.remove('hover');
+  setFile(e.dataTransfer.files[0]);
+});
+function setFile(f) {
+  if (!f) return;
+  pendingFile = f;
+  $('fname').textContent = '✔ ' + f.name + ` (${(f.size / 1e6).toFixed(2)} MB)`;
+  $('confirm-add').disabled = !($('new-name').value.trim());
+}
+$('new-name').addEventListener('input', () => $('confirm-add').disabled = !(pendingFile && $('new-name').value.trim()));
+$('cancel-add').addEventListener('click', () => $('add-dialog').close());
+$('confirm-add').addEventListener('click', async () => {
+  const btn = $('confirm-add');
+  if (!pendingFile) return;
+  btn.disabled = true; btn.textContent = 'Creating…';
+  try {
+    const fd = new FormData();
+    fd.append('file', pendingFile);
+    const r = await fetch('/api/voices?name=' + encodeURIComponent($('new-name').value.trim()), {
+      method: 'POST', body: fd,
+    });
+    if (!r.ok) {
+      let detail = r.statusText;
+      try { detail = (await r.json()).detail || detail; } catch {}
+      throw new Error(detail);
+    }
+    const created = (await r.json()).voice;
+    $('add-dialog').close();
+    $('new-name').value = ''; $('fname').textContent = ''; pendingFile = null;
+    selectedVoice = created.id;
+    await loadVoices();
+    toast(`Voice "${created.name}" created 🎉`, true);
+  } catch (err) {
+    toast('Could not create voice: ' + err.message);
+  } finally {
+    btn.disabled = false; btn.textContent = 'Create voice';
+  }
+});
+</script>
+</body>
+</html>

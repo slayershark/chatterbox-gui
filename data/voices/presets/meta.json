@@ -1,0 +1,23 @@
+{
+  "atlas": {
+    "description": "Male, deep and steady (English)"
+  },
+  "meera": {
+    "description": "Female, Hindi (official reference)"
+  },
+  "kabir": {
+    "description": "Male, Hindi (public-domain audiobook)"
+  },
+  "arjun": {
+    "description": "Male, Hindi (public-domain audiobook)"
+  },
+  "vidur": {
+    "description": "Male, Hindi (public-domain audiobook)"
+  },
+  "kunal": {
+    "description": "Male, Hindi (official Resemble reference)"
+  },
+  "julia": {
+    "description": "Female, English (LibriVox narrator)"
+  }
+}
