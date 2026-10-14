@@ -16,9 +16,14 @@ fastapi
 uvicorn[standard]
 python-multipart
 
-# Multilingual chatterbox (Hindi + English). pkuseg/pykakasi (Chinese/Japanese
-# tokenizer extras) are omitted: they fail to build on Windows without MSVC and
-# are only imported lazily for zh/ja text, which this app does not use.
+# Multilingual chatterbox (Hindi + English). pkuseg (Chinese/Japanese
+# tokenizer extra, pulled in transitively by chatterbox-tts) fails to build on
+# Windows without MSVC and on many Linux build envs (its setup.py imports numpy
+# inside pip's isolated build). It is only imported lazily for zh/ja text,
+# which this app does not use. On such systems install in two steps:
+#   grep -v '^chatterbox-tts' requirements.txt > /tmp/reqs.txt
+#   pip install -r /tmp/reqs.txt
+#   pip install --no-deps chatterbox-tts==0.1.3
 chatterbox-tts==0.1.3
 
 # Used by the vendored V3 Hindi engine (v3_engine/, from the official demo
